@@ -8,7 +8,7 @@
 #include <imebra/dataSet.h>
 #include <imebra/tcpAddress.h>
 #include <imebra/tcpStream.h>
-#include <imebra/CodecFactory.h>
+#include <imebra/codecFactory.h>
 #include <imebra/tcpListener.h>
 #include <imebra/streamReader.h>
 #include <imebra/streamWriter.h>

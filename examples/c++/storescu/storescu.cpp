@@ -6,7 +6,7 @@
 #include <imebra/dimse.h>
 #include <imebra/acse.h>
 #include <imebra/dataSet.h>
-#include <imebra/CodecFactory.h>
+#include <imebra/codecFactory.h>
 #include <imebra/tcpAddress.h>
 #include <imebra/tcpStream.h>
 #include <imebra/streamReader.h>
