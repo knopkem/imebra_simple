@@ -10,6 +10,7 @@
 # -DCMAKE_OSX_SYSROOT
 
 cmake_minimum_required(VERSION 3.0)
+cmake_policy(SET CMP0054 NEW)
 
 project("imebra")
 
@@ -69,30 +70,6 @@ if(IMEBRA_LOG_LEVEL)
 endif(IMEBRA_LOG_LEVEL)
 
 
-# For IPhone build a static library, otherwise build a dynamic library
-#---------------------------------------------------------------------
-if(NOT DEFINED IMEBRA_SHARED_STATIC)
-    set(IMEBRA_SHARED_STATIC "SHARED")
-endif(NOT DEFINED IMEBRA_SHARED_STATIC)
-
-if(APPLE)
-    set(IMEBRA_OBJC 1)
-    if(IOS)
-        set(IMEBRA_SHARED_STATIC "STATIC")
-        if("${IOS}" MATCHES "PHONE")
-            exec_program(xcrun ARGS --sdk iphoneos --show-sdk-path OUTPUT_VARIABLE CMAKE_OSX_SYSROOT)
-            set (CMAKE_OSX_ARCHITECTURES armv7 armv7s arm64)
-        elseif("${IOS}" MATCHES "SIMULATOR")
-            exec_program(xcrun ARGS --sdk iphonesimulator --show-sdk-path OUTPUT_VARIABLE CMAKE_OSX_SYSROOT)
-            set (CMAKE_OSX_ARCHITECTURES i386 x86_64)
-        else("${IOS}" MATCHES "PHONE")
-            message (FATAL_ERROR "Set IOS to PHONE or SIMULATOR")
-        endif("${IOS}" MATCHES "PHONE")
-        message ("IOS SDK ROOT: ${CMAKE_OSX_SYSROOT}")
-    endif(IOS)
-endif(APPLE)
-
-
 ##############################################
 #
 # LIBRARY
@@ -113,62 +90,6 @@ set(imebra_objc_include "")
 set(imebra_objc_include_dir "")
 set(imebra_objc_gnustep_dir "")
 
-if("${IMEBRA_OBJC}" STREQUAL "1")
-
-    file(GLOB imebra_objc_src "${CMAKE_CURRENT_SOURCE_DIR}/wrappers/objectivec/src/*.*")
-    file(GLOB imebra_objc_include "${CMAKE_CURRENT_SOURCE_DIR}/wrappers/objectivec/include/imebraobjc/*.h")
-    add_definitions(-DIMEBRA_OBJC)
-
-    set(imebra_objc_include_dir ${CMAKE_CURRENT_SOURCE_DIR}/wrappers/objectivec/include)
-
-    set(objc_compiler_flags "")
-    if(APPLE)
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -framework Foundation -framework CoreServices")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Foundation -framework CoreServices")
-        set(objc_compiler_flags "${objc_compiler_flags} -fobjc-arc")
-        if(IOS)
-            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -framework UIKit")
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework UIKit")
-        else(IOS)
-            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -framework AppKit")
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework AppKit")
-        endif(IOS)
-    else(APPLE)
-        set(objc_compiler_flags "${objc_compiler_flags} -fconstant-string-class=NSConstantString")
-        set(imebra_objc_gnustep_dir "/usr/include/GNUstep")
-        set(imebra_libraries ${imebra_libraries} gnustep-base objc)
-    endif(APPLE)
-
-    if(NOT "${objc_compiler_flags}" STREQUAL "")
-
-        foreach(objcfile ${imebra_objc_src})
-            set_source_files_properties(${objcfile} PROPERTIES COMPILE_FLAGS ${objc_compiler_flags})
-        endforeach(objcfile ${imebra_objc_src})
-
-    endif(NOT "${objc_compiler_flags}" STREQUAL "")
-
-endif("${IMEBRA_OBJC}" STREQUAL "1")
-
-
-if(NOT "${ADDITIONAL_LIB_PATH}" STREQUAL "")
-    link_directories(${LINK_DIRECTORIES} ${ADDITIONAL_LIB_PATH})
-endif(NOT "${ADDITIONAL_LIB_PATH}" STREQUAL "")
-
-# Add jpeg2000 if specified
-if("${JPEG2000}" STREQUAL "1")
-    set(imebra_libraries ${imebra_libraries} openjpeg)
-    add_definitions(-DJPEG2000)
-    add_definitions(-DJPEG2000_V1)
-    message(STATUS "Adding experimental Jpeg2000 codec (based on OpenJpeg v1.X)")
-endif("${JPEG2000}" STREQUAL "1")
-
-if("${JPEG2000}" STREQUAL "2")
-    set(imebra_libraries ${imebra_libraries} openjp2)
-    add_definitions(-DJPEG2000)
-    add_definitions(-DJPEG2000_V2)
-    message(STATUS "Adding experimental Jpeg2000 codec (based on OpenJpeg v2.X)")
-endif("${JPEG2000}" STREQUAL "2")
-
 add_library(imebra ${IMEBRA_SHARED_STATIC}
     ${imebra_implementation_src}
     ${imebra_implementation_src_objc}
@@ -180,23 +101,12 @@ add_library(imebra ${IMEBRA_SHARED_STATIC}
     ${imebra_interface}
 )
 
-if(NOT "${ADDITIONAL_INCLUDE_PATH}" STREQUAL "")
-    target_include_directories(imebra PRIVATE ${ADDITIONAL_INCLUDE_PATH})
-endif(NOT "${ADDITIONAL_INCLUDE_PATH}" STREQUAL "")
-
-if("${IMEBRA_OBJC}" STREQUAL "1")
-    set(HIDDEN_FLAGS "")
-else("${IMEBRA_OBJC}" STREQUAL "1")
-    set(HIDDEN_FLAGS "-fvisibility=hidden -fvisibility-inlines-hidden")
-endif("${IMEBRA_OBJC}" STREQUAL "1")
-
-
 # Add flags specific to the compiler
 #-----------------------------------
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 
     message(STATUS "MSVC detected, adding compile flags")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /Wp64")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
     set(imebra_libraries ${imebra_libraries} Kernel32)
 
 else()
@@ -219,14 +129,10 @@ else()
 
 endif()
 
-target_include_directories(imebra PRIVATE ${imebra_objc_gnustep_dir})
 
 # Define dependency libraries
 #----------------------------
 target_link_libraries(imebra ${imebra_libraries})
-
-message (STATUS "OBJC INCLUDE:${imebra_objc_include_dir}")
-message (STATUS "GNU INCLUDE:${imebra_objc_gnustep_dir}")
 
 # Define Imebra public folder
 #----------------------------
@@ -256,47 +162,46 @@ endif("$ENV{IMEBRA_REVISION}" STREQUAL "")
 
 set(IMEBRA_VERSION "${IMEBRA_MAJOR_VERSION}.${IMEBRA_MINOR_VERSION}.${IMEBRA_REVISION}")
 
-set_target_properties(imebra PROPERTIES VERSION ${IMEBRA_VERSION}
-                                          SOVERSION ${IMEBRA_MAJOR_VERSION})
+set_target_properties(imebra PROPERTIES VERSION ${IMEBRA_VERSION} SOVERSION ${IMEBRA_MAJOR_VERSION})
 
 
-    ##############################################
-    #
-    # MOVESCU example
-    #
-    ##############################################
-    file(GLOB movescu_sources "${CMAKE_CURRENT_SOURCE_DIR}/examples/c++/movescu/*.cpp")
+##############################################
+#
+# MOVESCU example
+#
+##############################################
+file(GLOB movescu_sources "${CMAKE_CURRENT_SOURCE_DIR}/examples/c++/movescu/*.cpp")
 
-    # Add the source files to the project
-    #------------------------------------
-    add_executable(movescu ${movescu_sources})
+# Add the source files to the project
+#------------------------------------
+add_executable(movescu ${movescu_sources})
 
-    target_link_libraries(movescu imebra)
+target_link_libraries(movescu imebra)
 
-    ##############################################
-    #
-    # STORESCU example
-    #
-    ##############################################
-    file(GLOB storescu_sources "${CMAKE_CURRENT_SOURCE_DIR}/examples/c++/storescu/*.cpp")
+##############################################
+#
+# STORESCU example
+#
+##############################################
+file(GLOB storescu_sources "${CMAKE_CURRENT_SOURCE_DIR}/examples/c++/storescu/*.cpp")
 
-    # Add the source files to the project
-    #------------------------------------
-    add_executable(storescu ${storescu_sources})
+# Add the source files to the project
+#------------------------------------
+add_executable(storescu ${storescu_sources})
 
-    target_link_libraries(storescu imebra)
+target_link_libraries(storescu imebra)
 
-    ##############################################
-    #
-    # STORESCP example
-    #
-    ##############################################
-    file(GLOB storescp_sources "${CMAKE_CURRENT_SOURCE_DIR}/examples/c++/storescp/*.cpp")
+##############################################
+#
+# STORESCP example
+#
+##############################################
+file(GLOB storescp_sources "${CMAKE_CURRENT_SOURCE_DIR}/examples/c++/storescp/*.cpp")
 
-    # Add the source files to the project
-    #------------------------------------
-    add_executable(storescp ${storescp_sources})
+# Add the source files to the project
+#------------------------------------
+add_executable(storescp ${storescp_sources})
 
-    target_link_libraries(storescp imebra)
+target_link_libraries(storescp imebra)
 
 
