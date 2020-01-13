@@ -204,4 +204,17 @@ add_executable(storescp ${storescp_sources})
 
 target_link_libraries(storescp imebra)
 
+##############################################
+#
+# FINDSCU example
+#
+##############################################
+file(GLOB findscu_sources "${CMAKE_CURRENT_SOURCE_DIR}/examples/c++/findscu/*.cpp")
+
+# Add the source files to the project
+#------------------------------------
+add_executable(findscu ${findscu_sources})
+
+target_link_libraries(findscu imebra)
+
 

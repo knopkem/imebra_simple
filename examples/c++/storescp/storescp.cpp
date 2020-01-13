@@ -78,6 +78,7 @@ int main(int argc, char* argv[])
 	catch(const StreamEOFError& error)
 	{
 		// The association has been closed
-		std::cout << "stream error: " << error.what() << std::endl;
+		std::cout << "assoc closed";
+		// std::cout << "stream error: " << error.what() << std::endl;
 	}
 }
